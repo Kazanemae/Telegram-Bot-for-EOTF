@@ -1,13 +1,17 @@
-import asyncio
+port asyncio
 import datetime
+import os.path
 import threading
 import time
 
 import nest_asyncio
 import telebot
 import schedule
+from telebot.types import InputFile
+from telethon.errors import UsernameInvalidError
+
 nest_asyncio.apply()
-bot = telebot.TeleBot("6942984728:AAGxDW_2aCeOpuocvLqCO2GH93qwU5JjNvs", parse_mode=None)
+bot = telebot.TeleBot("6774379680:AAFuml4xnoY3iTPW-s6K8N8PGVj6N_LpAGw", parse_mode=None)
 from ORM.db_connection import metadata, engine
 print("#bd connection")
 
@@ -44,7 +48,9 @@ def getMessage(message):
         asyncio.set_event_loop(loop1)
         asyncio.run(getMessages(1, msgCount,message.chat.id))
     except Exception as e:
-        print(e)
+        if isinstance(e, UsernameInvalidError):
+            return
+        print('error', e, type(e))
         bot.reply_to(message, "число не валидное проьбуйте еще")
         return bot.register_next_step_handler(message, getMessage)
 #client.run_until_disconnected()
@@ -59,11 +65,31 @@ async def getMessages(type,filterCount, user_id = None):
                                                   limit=filterCount):
                 if not msg.message:
                     continue
-                print(msg)
+                print('1', msg)
+                print(msg.media)
                 if msg.media:
-                    doc = await client.download_media(msg)
-                    print(f"#файл пользователю {user_id} {entity.title} {entity.id}")
-                    bot.send_document(int(user_id), caption=msg.message, document=doc)
+                    try:
+                        filename = msg.media.document.attributes[0].file_name
+                        if not os.path.exists(filename):
+                            doc = await client.download_media(msg)
+                        else:
+                            doc = InputFile(filename)
+                            print(f"#файл пользователю {user_id} {entity.title} {entity.id}")
+                            bot.send_document(int(user_id), document=doc)
+                            bot.send_message(int(user_id), msg.message)
+                    except:
+                        doc = await client.download_media(msg)
+                        print(f"#картинка пользователю {user_id} {entity.title} {entity.id}")
+                        image = InputFile(str(doc))
+                        bot.send_document(int(user_id), document=image)
+                        bot.send_message(int(user_id), msg.message)
+
+                    #print('2', doc)
+                    print(doc)
+                    # file_url = bot.get_file_url(msg.media.document.id)
+
+
+                    # bot.send_message(int(user_id), msg)
                 else:
                     print(f"#сообщение пользователю пользователю {user_id} {entity.title} {entity.id}")
                     bot.send_message(int(user_id), text=msg.message)
